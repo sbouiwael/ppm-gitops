@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ppm-frontend-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sbouiwael/ppm-gitops.git
+    targetRevision: main
+    path: charts/ppm-frontend
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ppm-prod
+  # Production: manual sync only.
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,51 @@
+# ==============================================================
+# ppm-backend — TEST environment overrides
+# Merged on top of values.yaml by Argo CD / helm install -f
+# ==============================================================
+
+image:
+  repository: ghcr.io/sbouiwael/ppm-backend
+  tag: "latest"   # CI pipeline updates this field automatically via sed
+
+replicaCount: 1
+
+env:
+  DB_HOST: "ppm-rds-test.example.com"   # replace with actual test DB endpoint
+  DB_PORT: "3306"
+  DB_NAME: "PPM_test"
+  DB_USER: "ppm_test_user"
+  DDL_AUTO: "validate"
+  SPRING_PROFILES_ACTIVE: "staging"   # use staging profile in k8s test env: Flyway ON, debug logging, ddl=validate
+  JWT_EXPIRATION_MS: "86400000"
+  CORS_ALLOWED_ORIGINS: "https://test.ppm.yourdomain.com"
+  FILE_UPLOAD_DIR: "/app/projects"
+
+secretName: "ppm-backend-secrets-test"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  hosts:
+    - host: "api-test.ppm.yourdomain.com"
+      paths:
+        - path: /api
+          pathType: Prefix
+  tls: []   # http acceptable in test — add cert-manager TLS once provider is chosen
+
+persistence:
+  enabled: true
+  storageClass: ""    # cluster default (update after provider choice)
+  size: "2Gi"
+
+autoscaling:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

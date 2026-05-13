@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ppm-backend.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ppm-backend.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ppm-backend.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0    # always keep at least one pod running during update
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "ppm-backend.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ppm-backend.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+
+      # ── initContainer : attendre que MySQL soit pret ──────────────────────────
+      # POURQUOI : Spring Boot demarre, tente de connecter a MySQL, et echoue si la base
+      # n'est pas encore prete — le pod crashe et Kubernetes le redemoarre (CrashLoopBackOff).
+      # L'initContainer busybox fait du polling sur le port MySQL avec nc (netcat).
+      # Quand MySQL repond, l'initContainer se termine avec succes et le pod Spring Boot demarre.
+      # C'est plus fiable que spring.datasource.hikari.connection-timeout seul.
+      # Lire ensuite : livenessProbe et readinessProbe ci-dessous pour comprendre
+      # comment Kubernetes surveille la sante du pod apres le demarrage.
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for MySQL at {{ .Values.env.DB_HOST }}:{{ .Values.env.DB_PORT }}..."
+              until nc -z {{ .Values.env.DB_HOST }} {{ .Values.env.DB_PORT }}; do
+                echo "MySQL not ready yet — retrying in 5s"
+                sleep 5
+              done
+              echo "MySQL is reachable. Starting backend."
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+
+      containers:
+        - name: ppm-backend
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+
+          # ── Non-secret env vars from ConfigMap ─────────────────────────────
+          envFrom:
+            - configMapRef:
+                name: {{ include "ppm-backend.fullname" . }}-config
+
+          # ── Secret env vars ────────────────────────────────────────────────
+          # The Secret named .Values.secretName must exist before deploying.
+          # Create it manually or via External Secrets Operator.
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: JWT_SECRET
+
+          # ── Health probes ──────────────────────────────────────────────────
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+
+          # ── Resources ──────────────────────────────────────────────────────
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
+          # ── Volume mounts ──────────────────────────────────────────────────
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: uploads
+              mountPath: {{ .Values.persistence.mountPath }}
+          {{- end }}
+
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: {{ include "ppm-backend.fullname" . }}-uploads
+        {{- end }}
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

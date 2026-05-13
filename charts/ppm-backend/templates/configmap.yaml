@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ppm-backend.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ppm-backend.labels" . | nindent 4 }}
+data:
+  # Non-secret application environment variables.
+  # Secret variables (DB_PASSWORD, JWT_SECRET) are sourced from the Kubernetes Secret
+  # referenced by .Values.secretName — never stored here.
+  DB_HOST:                  {{ .Values.env.DB_HOST | quote }}
+  DB_PORT:                  {{ .Values.env.DB_PORT | quote }}
+  DB_NAME:                  {{ .Values.env.DB_NAME | quote }}
+  DB_USER:                  {{ .Values.env.DB_USER | quote }}
+  DDL_AUTO:                 {{ .Values.env.DDL_AUTO | quote }}
+  SPRING_PROFILES_ACTIVE:   {{ .Values.env.SPRING_PROFILES_ACTIVE | quote }}
+  JWT_EXPIRATION_MS:        {{ .Values.env.JWT_EXPIRATION_MS | quote }}
+  SERVER_PORT:              {{ .Values.service.port | quote }}
+  CORS_ALLOWED_ORIGINS:     {{ .Values.env.CORS_ALLOWED_ORIGINS | quote }}
+  FILE_UPLOAD_DIR:          {{ .Values.env.FILE_UPLOAD_DIR | quote }}

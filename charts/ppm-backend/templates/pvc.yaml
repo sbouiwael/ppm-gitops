@@ -1,0 +1,29 @@
+{{- if .Values.persistence.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ppm-backend.fullname" . }}-uploads
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ppm-backend.labels" . | nindent 4 }}
+  annotations:
+    # Retain the PVC when the Helm release is deleted to prevent accidental data loss.
+    # Delete manually: kubectl delete pvc ppm-backend-uploads -n <namespace>
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - {{ .Values.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- else }}
+  # storageClassName not set — cluster default storage class will be used.
+  # Set values.persistence.storageClass once the provider is chosen:
+  #   AWS:          gp3
+  #   Azure:        managed-premium
+  #   GCP:          standard-rwo
+  #   k3s/self-hosted: local-path
+  {{- end }}
+{{- end }}

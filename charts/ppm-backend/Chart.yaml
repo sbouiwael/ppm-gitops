@@ -1,0 +1,21 @@
+apiVersion: v2
+name: ppm-backend
+description: >
+  PPM BIAT Backend — Spring Boot 3.4 REST API.
+  Manages projects, tasks, assignments, dependencies, users, portfolios and file storage.
+
+type: application
+
+# Chart version — bump on every chart change
+version: 0.1.0
+
+# Application version — overridden per environment via values-{env}.yaml image.tag
+appVersion: "latest"
+
+keywords:
+  - ppm
+  - spring-boot
+  - backend
+
+maintainers:
+  - name: ppm-team

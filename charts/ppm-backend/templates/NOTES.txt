@@ -1,0 +1,43 @@
+1. The application is starting. Check rollout status:
+
+   kubectl rollout status deployment/{{ include "ppm-backend.fullname" . }} -n {{ .Release.Namespace }}
+
+2. Get the application URL:
+
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+   http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}/api/actuator/health
+{{- end }}
+{{- else }}
+   export POD=$(kubectl get pods -n {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "ppm-backend.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+   kubectl port-forward $POD 8080:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+   # Then visit: http://localhost:8080/api/actuator/health
+{{- end }}
+
+3. The Secret "{{ .Values.secretName }}" must exist in namespace {{ .Release.Namespace }} with keys:
+   - DB_PASSWORD
+   - JWT_SECRET
+
+   Create it manually (replace values):
+   kubectl create secret generic {{ .Values.secretName }} \
+     --from-literal=DB_PASSWORD='<your-db-password>' \
+     --from-literal=JWT_SECRET='<your-jwt-secret-min-256-bits>' \
+     -n {{ .Release.Namespace }}
+
+4. File upload storage:
+{{- if .Values.persistence.enabled }}
+   PVC "{{ include "ppm-backend.fullname" . }}-uploads" is created with annotation helm.sh/resource-policy=keep.
+   It will NOT be deleted when the release is uninstalled. Delete manually if needed:
+   kubectl delete pvc {{ include "ppm-backend.fullname" . }}-uploads -n {{ .Release.Namespace }}
+{{- else }}
+   Persistence is disabled. File uploads will be lost on pod restart.
+{{- end }}
+
+5. Horizontal Pod Autoscaler:
+{{- if .Values.autoscaling.enabled }}
+   HPA is ENABLED (min={{ .Values.autoscaling.minReplicas }}, max={{ .Values.autoscaling.maxReplicas }}).
+   WARNING: Ensure file storage has been migrated to object storage before scaling > 1 replica.
+{{- else }}
+   HPA is disabled. Running {{ .Values.replicaCount }} replica(s).
+   Enable only after migrating file uploads to object storage (S3 / Blob / GCS).
+{{- end }}

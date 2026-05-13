@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ppm-frontend.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ppm-frontend.labels" . | nindent 4 }}
+data:
+  # Runtime env vars injected into the Nginx container via envsubst.
+  # These are NOT build-time values — Angular was built with apiUrl: '/api' (prod mode).
+  # Nginx proxies /api/* to BACKEND_URL at runtime.
+  BACKEND_URL: {{ .Values.env.BACKEND_URL | quote }}

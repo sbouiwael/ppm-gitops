@@ -1,0 +1,17 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Helm packaged charts
+*.tgz
+charts/*/charts/
+
+# Editor backups
+*~
+*.swp
+*.bak

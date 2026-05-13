@@ -1,0 +1,60 @@
+# ==============================================================
+# ppm-backend — PRODUCTION environment overrides
+# Promoted manually from staging via a reviewed GitOps PR.
+# Argo CD sync policy: manual (no auto-sync in prod).
+# ==============================================================
+
+image:
+  repository: ghcr.io/sbouiwael/ppm-backend
+  tag: "latest"   # updated via GitOps PR after staging validation
+
+replicaCount: 2   # minimum — HPA takes over under load
+
+env:
+  DB_HOST: "ppm-rds-prod.example.com"   # managed DB — never localhost
+  DB_PORT: "3306"
+  DB_NAME: "PPM"
+  DB_USER: "ppm_prod_user"
+  DDL_AUTO: "validate"
+  SPRING_PROFILES_ACTIVE: "prod"
+  JWT_EXPIRATION_MS: "28800000"         # 8h session in production
+  CORS_ALLOWED_ORIGINS: "https://ppm.yourdomain.com"
+  FILE_UPLOAD_DIR: "/app/projects"
+
+secretName: "ppm-backend-secrets-prod"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod   # enable after cert-manager setup
+  hosts:
+    - host: "api.ppm.yourdomain.com"
+      paths:
+        - path: /api
+          pathType: Prefix
+  tls:
+    - secretName: ppm-backend-prod-tls
+      hosts:
+        - api.ppm.yourdomain.com
+
+persistence:
+  enabled: true
+  storageClass: ""    # set to cloud-specific class after provider choice
+  size: "20Gi"        # production volume — assess quarterly
+
+autoscaling:
+  enabled: false      # enable ONLY after file storage is migrated to object storage
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 60
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi

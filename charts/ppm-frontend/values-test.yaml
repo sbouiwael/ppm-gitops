@@ -1,0 +1,27 @@
+# ── Test environment overrides ────────────────────────────────────────────────
+image:
+  repository: ghcr.io/sbouiwael/ppm-frontend
+  tag: latest   # overwritten by CI: sed -i on promote-test job
+
+replicaCount: 1
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: ppm-test.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+env:
+  BACKEND_URL: "http://ppm-backend.ppm-test.svc.cluster.local:8080"
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi

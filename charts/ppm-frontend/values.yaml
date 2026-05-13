@@ -1,0 +1,108 @@
+# ── Image ──────────────────────────────────────────────────────────────────────
+image:
+  repository: ghcr.io/sbouiwael/ppm-frontend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+# ── Replicas ───────────────────────────────────────────────────────────────────
+replicaCount: 1
+
+# ── Service Account ────────────────────────────────────────────────────────────
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# ── Pod annotations ────────────────────────────────────────────────────────────
+podAnnotations: {}
+
+# ── Security contexts ─────────────────────────────────────────────────────────
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 101      # nginx user in nginx:alpine
+  fsGroup: 101
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false   # nginx writes to /tmp and /var/cache/nginx
+  capabilities:
+    drop: [ALL]
+
+# ── Service ────────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 80
+
+# ── Ingress ────────────────────────────────────────────────────────────────────
+# Uses nginx ingress controller by default (provider-agnostic).
+# After cloud provider is chosen, annotations can be added per environment:
+#   AWS ALB:      kubernetes.io/ingress.class: alb
+#   Azure AppGW:  kubernetes.io/ingress.class: azure/application-gateway
+#   GCP GKE:      kubernetes.io/ingress.class: gce
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: ppm.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # tls:
+  #   - secretName: ppm-frontend-tls
+  #     hosts:
+  #       - ppm.example.com
+
+# ── Resources ─────────────────────────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+# ── Autoscaling ───────────────────────────────────────────────────────────────
+# Frontend is stateless — HPA is safe to enable unlike the backend.
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+# ── Node scheduling ───────────────────────────────────────────────────────────
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# ── Runtime environment ───────────────────────────────────────────────────────
+# These are injected into the Nginx container via envsubst at startup.
+# The Angular build uses relative /api URL in production mode,
+# so the container needs BACKEND_URL to configure the nginx upstream proxy.
+env:
+  # Backend service URL that nginx will proxy /api requests to.
+  # In-cluster: http://<backend-service-name>.<namespace>.svc.cluster.local:<port>
+  BACKEND_URL: "http://ppm-backend:8080"
+
+# ── Health probes ─────────────────────────────────────────────────────────────
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 20
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3

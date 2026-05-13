@@ -1,0 +1,55 @@
+# App-of-Apps root application.
+# This single Application tells Argo CD to watch the apps/environments/ directory
+# and manage all child Applications found there.
+#
+# PATTERN App-of-Apps :
+#   Cet Application pointe vers apps/environments/ (un dossier de manifests).
+#   Chaque fichier YAML dans ce dossier est lui-meme un Application Argo CD.
+#   Argo CD les cree automatiquement — un seul kubectl apply suffit pour tout bootstrapper.
+#
+#   apps/environments/
+#     test/backend.yaml    ← Application avec sync automatique
+#     test/frontend.yaml   ← Application avec sync automatique
+#     staging/...          ← Application avec sync automatique
+#     prod/backend.yaml    ← Application SANS bloc automated: → sync MANUEL uniquement
+#
+# PROMOTION DU FLUX (CI → GitOps → Cluster) :
+#   1. CI pipeline cree une image taguee (ghcr.io/org/ppm-backend:sha-abc123)
+#   2. CI met a jour image.tag dans apps/environments/test/backend.yaml via sed
+#   3. Argo CD detecte le commit → sync automatique vers le cluster test
+#   4. Apres validation humaine : PR pour mettre a jour staging, puis prod (sync manuel)
+#
+# CONSEQUENCE DE finalizers.resources-finalizer.argocd.argoproj.io :
+#   Si cet Application parent est supprime, tous les Applications enfants seront aussi supprimes.
+#   Les namespaces et PVCs ont des politiques de retention separees.
+#
+# FICHIER SUIVANT A LIRE : apps/environments/test/backend.yaml (sync auto)
+# PUIS : apps/environments/prod/backend.yaml (comparer — pas de bloc automated:)
+#
+# Apply once to bootstrap Argo CD:
+#   kubectl apply -f apps/argocd/app-of-apps.yaml -n argocd
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ppm-apps
+  namespace: argocd
+  # Cascade delete: when this Application is deleted, Argo CD will also delete
+  # all child Applications (but NOT the namespaces or PVCs — those have keep policies).
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # Point this to your GitOps repo after replacing the placeholder.
+    repoURL: https://github.com/sbouiwael/ppm-gitops.git
+    targetRevision: main
+    path: apps/environments
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true      # Remove resources deleted from Git
+      selfHeal: true   # Revert manual changes made outside Git
+    syncOptions:
+      - CreateNamespace=true

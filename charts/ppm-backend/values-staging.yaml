@@ -1,0 +1,55 @@
+# ==============================================================
+# ppm-backend — STAGING (pre-production) environment overrides
+# ==============================================================
+
+image:
+  repository: ghcr.io/sbouiwael/ppm-backend
+  tag: "latest"   # promoted manually from test via GitOps PR
+
+replicaCount: 2
+
+env:
+  DB_HOST: "ppm-rds-staging.example.com"
+  DB_PORT: "3306"
+  DB_NAME: "PPM_staging"
+  DB_USER: "ppm_staging_user"
+  DDL_AUTO: "validate"
+  SPRING_PROFILES_ACTIVE: "staging"
+  JWT_EXPIRATION_MS: "86400000"
+  CORS_ALLOWED_ORIGINS: "https://staging.ppm.yourdomain.com"
+  FILE_UPLOAD_DIR: "/app/projects"
+
+secretName: "ppm-backend-secrets-staging"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod   # enable after cert-manager setup
+  hosts:
+    - host: "api-staging.ppm.yourdomain.com"
+      paths:
+        - path: /api
+          pathType: Prefix
+  tls:
+    - secretName: ppm-backend-staging-tls
+      hosts:
+        - api-staging.ppm.yourdomain.com
+
+persistence:
+  enabled: true
+  storageClass: ""
+  size: "10Gi"
+
+autoscaling:
+  enabled: false    # enable after migrating file storage to object storage
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi

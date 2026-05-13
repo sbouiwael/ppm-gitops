@@ -1,0 +1,159 @@
+# ==============================================================
+# ppm-backend — Default Helm values
+# These are base/common defaults.
+# Environment-specific overrides live in values-{test,staging,prod}.yaml
+# ==============================================================
+
+# ── Image ──────────────────────────────────────────────────────────────────
+image:
+  # Set REGISTRY/IMAGE_NAME in CI or override here.
+  # Default points to GHCR; update to ECR/ACR/GCR once provider is chosen.
+  repository: ghcr.io/sbouiwael/ppm-backend
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Image pull secret name (needed for private registries in Kubernetes)
+# Create with: kubectl create secret docker-registry regcred --docker-server=... --docker-username=... --docker-password=...
+imagePullSecrets: []
+# - name: regcred
+
+# ── Replicas ───────────────────────────────────────────────────────────────
+replicaCount: 1
+
+# ── Naming ────────────────────────────────────────────────────────────────
+nameOverride: ""
+fullnameOverride: ""
+
+# ── Service Account ────────────────────────────────────────────────────────
+serviceAccount:
+  create: true
+  name: ""
+  # Annotations for cloud IAM integration (set per provider after choice):
+  #   AWS IRSA:        eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/ROLE
+  #   Azure Workload:  azure.workload.identity/client-id: CLIENT_ID
+  #   GCP Workload:    iam.gke.io/gcp-service-account: SA@PROJECT.iam.gserviceaccount.com
+  annotations: {}
+
+# ── Service ────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 8082
+
+# ── Ingress ────────────────────────────────────────────────────────────────
+ingress:
+  enabled: false
+  className: "nginx"      # nginx ingress controller — provider-agnostic
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod  # add once cert-manager is deployed
+    # nginx.ingress.kubernetes.io/proxy-body-size: "50m" # match backend multipart limit
+  hosts:
+    - host: "api.ppm.yourdomain.com"
+      paths:
+        - path: /api
+          pathType: Prefix
+  tls: []
+  # tls:
+  #   - secretName: ppm-backend-tls
+  #     hosts:
+  #       - api.ppm.yourdomain.com
+
+# ── Resources ──────────────────────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+# ── Autoscaling (HPA) ──────────────────────────────────────────────────────
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  # NOTE: HPA requires replicaCount >= 2 to be meaningful in production.
+  # File storage PVC (ReadWriteOnce) must be migrated to object storage before enabling HPA.
+
+# ── Application environment variables (non-secret) ─────────────────────────
+env:
+  DB_HOST: "localhost"            # override per env with RDS/CloudSQL endpoint
+  DB_PORT: "3306"
+  DB_NAME: "PPM"
+  DB_USER: "ppm_user"
+  DDL_AUTO: "validate"           # always validate in Kubernetes (Flyway owns schema)
+  SPRING_PROFILES_ACTIVE: "prod"
+  JWT_EXPIRATION_MS: "86400000"  # 24h
+  SERVER_PORT: "8082"
+  CORS_ALLOWED_ORIGINS: "http://localhost"
+  FILE_UPLOAD_DIR: "/app/projects"
+
+# ── Secrets ────────────────────────────────────────────────────────────────
+# Strategy: create a Kubernetes Secret named `secretName` BEFORE deploying.
+#
+# Option A (simplest, manual): kubectl create secret generic ppm-backend-secrets \
+#   --from-literal=DB_PASSWORD=xxx --from-literal=JWT_SECRET=yyy
+#
+# Option B (GitOps-safe): External Secrets Operator (ESO) + your cloud secret manager.
+#   Uncomment the ExternalSecret template and configure secretStoreRef after provider choice.
+#
+# The deployment.yaml references this secret by name for DB_PASSWORD and JWT_SECRET.
+secretName: "ppm-backend-secrets"
+
+# ── Persistent Volume Claim (file uploads) ─────────────────────────────────
+persistence:
+  enabled: true
+  # storageClass: ""  means "use cluster default".
+  # Set explicitly after provider choice:
+  #   AWS:   gp3
+  #   Azure: managed-premium or azuredisk-csi
+  #   GCP:   standard-rwo or premium-rwo
+  #   k3s/self-hosted: local-path
+  storageClass: ""
+  size: "5Gi"
+  accessMode: ReadWriteOnce
+  mountPath: /app/projects
+  # NOTE: ReadWriteOnce means only ONE pod can mount this volume at a time.
+  # This limits the backend to 1 replica until file storage is migrated to object storage.
+
+# ── Health Probes ──────────────────────────────────────────────────────────
+# Matches Spring Boot Actuator endpoints configured in application.properties
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8082
+  initialDelaySeconds: 60
+  periodSeconds: 15
+  failureThreshold: 3
+  timeoutSeconds: 5
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8082
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 3
+  timeoutSeconds: 5
+
+# ── Pod configuration ──────────────────────────────────────────────────────
+podAnnotations: {}
+  # prometheus.io/scrape: "true"      # enable if Prometheus is NOT using ServiceMonitor
+  # prometheus.io/port: "8082"
+  # prometheus.io/path: "/actuator/prometheus"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false   # false: Spring Boot writes temp files; set true with emptyDir tmpfs
+  capabilities:
+    drop:
+      - ALL
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
