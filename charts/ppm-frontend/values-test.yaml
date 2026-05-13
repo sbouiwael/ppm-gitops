@@ -1,7 +1,7 @@
 # ── Test environment overrides ────────────────────────────────────────────────
 image:
   repository: ghcr.io/sbouiwael/ppm-frontend
-  tag: latest   # overwritten by CI: sed -i on promote-test job
+  tag: "latest"
 
 replicaCount: 1
 
