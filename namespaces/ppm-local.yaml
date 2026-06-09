@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ppm-local
+  labels:
+    environment: local
+    app.kubernetes.io/managed-by: argocd

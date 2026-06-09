@@ -21,7 +21,7 @@ ingress:
         - ppm.example.com
 
 env:
-  BACKEND_URL: "http://ppm-backend.ppm-prod.svc.cluster.local:8080"
+  BACKEND_URL: "http://ppm-backend.ppm-prod.svc.cluster.local:8082"
 
 resources:
   requests:

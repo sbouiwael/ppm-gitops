@@ -1,0 +1,37 @@
+# ==============================================================
+# ppm-frontend - LOCAL environment overrides (Minikube / kind / k3d)
+# ==============================================================
+
+image:
+  repository: ghcr.io/sbouiwael/ppm-frontend
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# Backend service uses port 8082 (Spring Boot SERVER_PORT and Service.port).
+# This local file fixes the port; test/staging/prod values are kept untouched
+# for promote-test contract — see open questions in ppm-infra/README.md.
+env:
+  BACKEND_URL: "http://ppm-backend.ppm-local.svc.cluster.local:8082"
+
+ingress:
+  enabled: false
+  className: "nginx"
+  hosts:
+    - host: "ppm.local"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+autoscaling:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi

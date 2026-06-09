@@ -1,0 +1,62 @@
+# ==============================================================
+# ppm-backend - LOCAL environment overrides (Minikube / kind / k3d)
+# Provider-agnostic: works on any kubeconfig context.
+# Bootstrapped by ppm-infra (Terraform) which creates:
+#   - Namespace ppm-local
+#   - Secret ppm-backend-secrets-local (DB_PASSWORD, JWT_SECRET)
+#   - MySQL release at ppm-mysql.ppm-local.svc.cluster.local:3306
+# ==============================================================
+
+image:
+  repository: ghcr.io/sbouiwael/ppm-backend
+  # Same line shape as values-test.yaml ("  tag:" at column 2)
+  # so the promote-test sed contract stays portable to this file too
+  # if it is ever extended to promote into local.
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+env:
+  DB_HOST: "ppm-mysql.ppm-local.svc.cluster.local"
+  DB_PORT: "3306"
+  DB_NAME: "PPM"
+  DB_USER: "ppm_user"
+  DDL_AUTO: "validate"
+  SPRING_PROFILES_ACTIVE: "staging"
+  JWT_EXPIRATION_MS: "86400000"
+  CORS_ALLOWED_ORIGINS: "http://localhost,http://ppm.local"
+  FILE_UPLOAD_DIR: "/app/projects"
+
+# Secret created by ppm-infra/terraform/modules/ppm-secrets
+secretName: "ppm-backend-secrets-local"
+
+# Ingress OFF for local-by-default: use `kubectl port-forward` or `minikube tunnel`.
+# Flip to true if you have an ingress controller and want host-based access.
+ingress:
+  enabled: false
+  className: "nginx"
+  hosts:
+    - host: "api.ppm.local"
+      paths:
+        - path: /api
+          pathType: Prefix
+  tls: []
+
+persistence:
+  enabled: true
+  storageClass: ""   # cluster default (Minikube: standard / k3d: local-path)
+  size: "1Gi"
+  accessMode: ReadWriteOnce
+  mountPath: /app/projects
+
+autoscaling:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

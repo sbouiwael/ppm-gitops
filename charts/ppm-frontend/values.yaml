@@ -88,7 +88,7 @@ affinity: {}
 env:
   # Backend service URL that nginx will proxy /api requests to.
   # In-cluster: http://<backend-service-name>.<namespace>.svc.cluster.local:<port>
-  BACKEND_URL: "http://ppm-backend:8080"
+  BACKEND_URL: "http://ppm-backend:8082"
 
 # ── Health probes ─────────────────────────────────────────────────────────────
 livenessProbe:
