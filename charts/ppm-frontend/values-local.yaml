@@ -13,7 +13,9 @@ replicaCount: 1
 # This local file fixes the port; test/staging/prod values are kept untouched
 # for promote-test contract — see open questions in ppm-infra/README.md.
 env:
-  BACKEND_URL: "http://ppm-backend.ppm-local.svc.cluster.local:8082"
+  # Service name is the Argo CD release name (ppm-backend-local), not "ppm-backend".
+  # nginx resolves this upstream at startup, so it must match the real Service DNS.
+  BACKEND_URL: "http://ppm-backend-local.ppm-local.svc.cluster.local:8082"
 
 # ── Security context override (LOCAL only) ──────────────────────────────────
 # The published image is a stock `nginx:alpine` (runs as root): its entrypoint
