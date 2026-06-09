@@ -15,6 +15,24 @@ replicaCount: 1
 env:
   BACKEND_URL: "http://ppm-backend.ppm-local.svc.cluster.local:8082"
 
+# ── Security context override (LOCAL only) ──────────────────────────────────
+# The published image is a stock `nginx:alpine` (runs as root): its entrypoint
+# writes the rendered config to /etc/nginx/conf.d/default.conf, nginx writes its
+# pid to /run/nginx.pid, and it listens on :80 — none of which work under the
+# chart default (runAsUser 101 + capabilities.drop[ALL]). Run as root here so the
+# stock image works on Minikube. test/staging/prod keep the non-root default.
+# Proper cloud fix = rebuild the frontend on `nginxinc/nginx-unprivileged`
+# (uid 101, writable dirs, listen 8080) — tracked as a follow-up.
+podSecurityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+  fsGroup: 0
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: []
+
 ingress:
   enabled: false
   className: "nginx"
