@@ -9,10 +9,12 @@
 
 image:
   repository: ghcr.io/sbouiwael/ppm-backend
-  # Same line shape as values-test.yaml ("  tag:" at column 2)
-  # so the promote-test sed contract stays portable to this file too
-  # if it is ever extended to promote into local.
-  tag: "latest"
+  # Locally-built image (SecurityConfig permits /actuator/prometheus) loaded into
+  # Minikube via `minikube image load ...:actuator-fix`. This tag exists ONLY on
+  # the local node, so pullPolicy MUST stay IfNotPresent (it is not on GHCR).
+  # Once the same change is pushed to ppm-backend and CI rebuilds, switch back to
+  # a registry tag (e.g. latest or the promoted sha-xxxx).
+  tag: "actuator-fix"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
