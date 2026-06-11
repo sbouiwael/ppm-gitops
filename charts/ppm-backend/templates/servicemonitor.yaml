@@ -1,0 +1,23 @@
+{{- if .Values.serviceMonitor.enabled }}
+# Tells the Prometheus Operator to scrape this backend's metrics endpoint.
+# Requires the ServiceMonitor CRD (installed by kube-prometheus-stack) to exist.
+# Prometheus must be configured with serviceMonitorSelectorNilUsesHelmValues=false
+# (or a matching selector) to discover ServiceMonitors created outside its own release.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "ppm-backend.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ppm-backend.labels" . | nindent 4 }}
+spec:
+  # Select the backend Service in this same namespace by its identity labels.
+  selector:
+    matchLabels:
+      {{- include "ppm-backend.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: {{ .Values.serviceMonitor.port | default "http" }}
+      path: {{ .Values.serviceMonitor.path | default "/actuator/prometheus" }}
+      interval: {{ .Values.serviceMonitor.interval | default "30s" }}
+      scheme: http
+{{- end }}

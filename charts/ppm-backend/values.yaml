@@ -157,3 +157,14 @@ containerSecurityContext:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# ── Prometheus ServiceMonitor ───────────────────────────────────────────────
+# Disabled by default: only meaningful where the Prometheus Operator CRDs exist
+# (i.e. the kube-prometheus-stack is installed). Enable per-env in values-{env}.yaml.
+# Scrapes /actuator/prometheus, which SecurityConfig permits without auth for
+# in-cluster access.
+serviceMonitor:
+  enabled: false
+  port: http
+  path: /actuator/prometheus
+  interval: 30s

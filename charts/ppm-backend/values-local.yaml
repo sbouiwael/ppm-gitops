@@ -53,6 +53,10 @@ persistence:
 autoscaling:
   enabled: false
 
+# Expose the backend to Prometheus (kube-prometheus-stack is installed locally).
+serviceMonitor:
+  enabled: true
+
 resources:
   requests:
     cpu: 100m
