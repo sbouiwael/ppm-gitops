@@ -20,4 +20,10 @@ spec:
       path: {{ .Values.serviceMonitor.path | default "/actuator/prometheus" }}
       interval: {{ .Values.serviceMonitor.interval | default "30s" }}
       scheme: http
+      # Stamp an `application` label on every scraped series. Micrometer doesn't
+      # emit one by default, and the common Grafana JVM/Spring dashboards filter
+      # on it — without this they show "No data".
+      relabelings:
+        - targetLabel: application
+          replacement: {{ .Values.serviceMonitor.applicationLabel | default .Chart.Name | quote }}
 {{- end }}
