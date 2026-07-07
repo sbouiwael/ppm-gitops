@@ -9,12 +9,12 @@
 
 image:
   repository: ghcr.io/sbouiwael/ppm-backend
-  # Locally-built image (SecurityConfig permits /actuator/prometheus) loaded into
-  # Minikube via `minikube image load ...:actuator-fix`. This tag exists ONLY on
-  # the local node, so pullPolicy MUST stay IfNotPresent (it is not on GHCR).
-  # Once the same change is pushed to ppm-backend and CI rebuilds, switch back to
-  # a registry tag (e.g. latest or the promoted sha-xxxx).
-  tag: "actuator-fix"
+  # Immutable registry tag pulled from GHCR (public package). This image already
+  # contains the SecurityConfig change that permits /actuator/prometheus (built and
+  # signed by the backend CI). Replaces the earlier node-local `actuator-fix` hack:
+  # the cluster now pulls a real, immutable image like any other environment. Bump
+  # this to a newer sha-xxxxxxx to roll forward via GitOps (Argo CD picks it up).
+  tag: "sha-c5c8868"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
