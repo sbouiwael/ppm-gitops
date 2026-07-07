@@ -24,6 +24,10 @@ spec:
       # emit one by default, and the common Grafana JVM/Spring dashboards filter
       # on it — without this they show "No data".
       relabelings:
-        - targetLabel: application
+        # `action: replace` is explicit on purpose: the Prometheus Operator defaults
+        # it into the stored object, so omitting it makes Argo CD see a perpetual
+        # diff (desired without action vs live with action) and report OutOfSync.
+        - action: replace
+          targetLabel: application
           replacement: {{ .Values.serviceMonitor.applicationLabel | default .Chart.Name | quote }}
 {{- end }}
