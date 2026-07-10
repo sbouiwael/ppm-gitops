@@ -59,6 +59,21 @@ autoscaling:
 serviceMonitor:
   enabled: true
 
+# ── Cold-start (Minikube contraint) ──────────────────────────────────────────
+# Le demarrage a froid du backend (JVM + Spring + Flyway + JPA) peut depasser la
+# fenetre de la livenessProbe (~105 s) sur un noeud lent, ce qui tuait le pod et
+# provoquait un CrashLoopBackOff. Le startupProbe laisse jusqu'a ~7 min pour
+# demarrer ; une fois reussi, liveness et readiness prennent le relais normalement.
+# (Complete l'initContainer wait-for-db, qui gere l'ordre de disponibilite MySQL.)
+startupProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8082
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  failureThreshold: 40
+  timeoutSeconds: 5
+
 resources:
   requests:
     cpu: 100m

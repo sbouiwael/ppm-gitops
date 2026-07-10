@@ -93,6 +93,14 @@ spec:
                   key: JWT_SECRET
 
           # ── Health probes ──────────────────────────────────────────────────
+          # startupProbe : couvre le demarrage a froid lent (JVM/Spring bridee par
+          # la limite CPU sur un noeud contraint). Tant qu'il n'a pas reussi,
+          # Kubernetes SUSPEND liveness et readiness — le pod n'est donc plus tue
+          # prematurement pendant l'initialisation. Rendu uniquement s'il est defini.
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
